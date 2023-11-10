@@ -1,4 +1,3 @@
-import { stringify } from 'querystring';
 import backlog from './backlog';
 import backlog_reverse from './backlog_reverse';
 import duplicated from './duplicated';
@@ -47,10 +46,15 @@ export const convert = (origin: string, ruleName: string, options: Options = {})
       let index = 0;
       const regExp = new RegExp(`{{ ?${placeName} ?}}`, 'g');
 
-      // @for (items) コンマ区切りの数だけ繰り返す
-      const forRegExp = new RegExp(`@for ?\\(${placeName}\\)\\n?([\\s\\S]+?\\n)?@endfor\\n?`, 'g');
-      output = output.replace(forRegExp, (_all: string, text: string) => {
-        return value !== '' ? text.repeat(chunks.length) : '';
+      // @for (items) コンマ区切りの数だけ繰り返す (内部のテンプレート展開を項目のみにする)
+      const forRegExp = new RegExp(`@for ?\\((${placeName})\\)\\n?([\\s\\S]+?\\n)?@endfor\\n?`, 'g');
+      output = output.replace(forRegExp, (_all: string, item: string, text: string) => {
+        console.log({item, text})
+        const items = value.split(/, ?/);
+        return items.map((chunk) => {
+          const itemRegExp = new RegExp(`{{ ?${item} ?}}`, 'g');
+          return text.replace(itemRegExp, chunk);
+        }).join('');
       });
 
       // @for (item in items) コンマ区切りの数だけ繰り返す
@@ -101,6 +105,5 @@ export const convert = (origin: string, ruleName: string, options: Options = {})
   });
   return output;
 };
-
 
 export default ruleMaps;

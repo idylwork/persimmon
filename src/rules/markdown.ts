@@ -3,8 +3,12 @@ import { arrayToTable, escapeHtml, splitPresence } from '../modules';
 // マークダウンプレビュー
 export default new Map<RegExp, string | Function>([
   /* コード */
-  [/^```[a-z]*?\n*([^`]*\n)```$/gm, (args: string[]) => {
-    return `<div class="preview-md-code">${escapeHtml(args[1])}</div>`;
+  [/^```([a-z]*)\n*([^`]*\n)```$/gm, (args: string[]) => {
+    // マーメイド記法
+    if (args[1] === 'mermaid') {
+      return `<div class="mermaid">${args[2].replace(/\n/g, '\\n')}</div>`;
+    }
+    return `<div class="preview-md-code">${escapeHtml(args[2])}</div>`;
   }],
   /* インラインコード */
   [/`([^`]+)`/g, '<span class="preview-md-code">$1</span>'],
@@ -21,18 +25,32 @@ export default new Map<RegExp, string | Function>([
   /* 罫線 */
   [/^-{3,}$/gm, '<hr class="preview-md-hr">'],
   /* リスト */
-  [/^(?:[ 	]*- .*?\n)+/gm, (args: string[], options: { data: { checkboxIndex: number } }) => {
+  [/^[ 	]*- .*?\n(?:(?:[ 	]*- |[ 	]{2,}).*?\n)*/gm, (args: string[], options: { data: { checkboxIndex: number } }) => {
     let output = '<ul class="preview-md-list">';
     let rows = splitPresence(args[0], '\n');
+
+    /** @var リスト内改行時に使用する直前のインデント幅 */
+    let lastIndent = 0;
     rows.forEach((row) => {
+      const isNewLine = !/^[ 	]*- /.test(row);
+
+      // インデント幅を判定
       let indent = 0;
-      let text = row.replace(/^(  |	)*- /, (lineHead) => {
-        indent = lineHead.split(/  |	/).length-1;
-        return '';
-      });
+      let text = '';
+      if (!isNewLine) {
+        text = row.replace(/^(  |	)*- /, (lineHead) => {
+          indent = lineHead.split(/  |	/).length - 1;
+          return '';
+        })
+      } else {
+        text = row.replace(/^[ 	]+/, '');
+        indent = lastIndent;
+      }
+      lastIndent = indent;
 
       let className = 'preview-md-list-item';
       if (indent) className += ' preview-md-list-indent-' + indent;
+      if (isNewLine) className += ' preview-md-list-newline'
 
       // チェックボックス
       let isChecked: boolean | null = null; // null:リスト boolean:チェックボックス
@@ -46,8 +64,7 @@ export default new Map<RegExp, string | Function>([
         text = `<input type="checkbox" name="checkbox[${index}]" class="preview-md-checkbox" ${isChecked ? 'checked' : ''}>${innerText}`;
         className += ' preview-md-checklist';
       }
-
-      output += '<li class="' + className + '">' + text + '</li>';
+      output += `<li class="${className}">${text}</li>`;
     });
     output += '</ul>';
     return output;
@@ -105,4 +122,8 @@ export default new Map<RegExp, string | Function>([
     let level = args[1].length;
     return '<h' + level + ' class="preview-md-heading-' + level + '">' + args[2] + '</h' + level + '>';
   }],
+  /* 改行をHTML化  */
+  [/\n/g, '<br>'],
+  /* 改行エスケープを改行文字に戻す */
+  [/\\n/g, '\n'],
 ]);

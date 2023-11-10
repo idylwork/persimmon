@@ -22,10 +22,9 @@ const common: Configuration = {
         loader: 'ts-loader',
       },
       {
-				test: /\.(sc|sa|c)ss$/i,
+				test: /\.s(c|a)ss$/i,
 				use: [
 					MiniCssExtractPlugin.loader,
-					'css-loader',
 					'sass-loader',
 				],
 			},
